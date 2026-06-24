@@ -100,12 +100,6 @@ This ensures the assistant becomes more aligned with the user's communication st
 {"event": "drafter_agent_completed", "email_id": "email-001", "approval_id": "apr-x7y8z9", "tone": "urgent_professional", "level": "info", "timestamp": "2026-06-23T14:35:03Z"}
 ```
 
-### Metrics Dashboard
-
-![Metrics & Tracing Dashboard](docs/screenshots/metrics_dashboard.png)
-
-*Live metrics from a sample run processing 5 actionable inbox emails: counters, classification breakdowns, latency histograms, and per-agent traces.*
-
 ## 🚀 Quick Start
 
 ### Option A: Docker (Recommended — no local setup needed)
@@ -226,13 +220,25 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 
 1. **Browse inbox** — The left panel shows the 5 actionable inbox emails. A sixth sample message is a sent reply retained as thread history/context. Click any inbox email to read its full content in the right panel.
 
+   ![Inbox email detail view](docs/screenshots/inbox.png)
+
+   *Inbox view with a selected email displayed for review before processing.*
+
 2. **Process an email** — After reading, click **"🤖 Process with Agent Pipeline"**. The system will:
    - Classify intent (request, question, meeting, FYI, etc.)
    - Assign priority (urgent, high, normal, low)
    - Route to the appropriate agent (drafter, summarizer, or scheduler)
    - Generate a draft reply or schedule a follow-up
 
+   ![Agent processing result](docs/screenshots/agent_processing.png)
+
+   *Processing result showing classification, a generated draft reply, and pending approval.*
+
 3. **Review approvals** — Switch to the **👤 Approvals** tab. You'll see each pending action with its proposed payload/details displayed.
+
+   ![Approvals review queue](docs/screenshots/approvals.png)
+
+   *Human-in-the-loop approval queue with approved, edited, and pending actions.*
 
 4. **Approve, Edit, or Reject:**
    - **✅ Approve** — Sends the reply as-is
@@ -252,6 +258,12 @@ Once the server is running (`docker compose up --build`), open **http://localhos
    - `email-006` — Sprint reminder → schedules follow-up
 
 > **Tip:** Use the Swagger API docs at **http://localhost:8000/docs** for full control, including memory search (`/memory/contacts/search?q=...`) and system reset (`POST /reset`).
+
+### Metrics Dashboard
+
+![Metrics & Tracing Dashboard](docs/screenshots/metrics_dashboard.png)
+
+*Live metrics from a sample run processing 5 actionable inbox emails: counters, classification breakdowns, latency histograms, and per-agent traces.*
 
 ## 📂 Project Structure
 
