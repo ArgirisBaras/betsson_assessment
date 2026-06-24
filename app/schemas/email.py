@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +19,7 @@ class EmailPriority(str, Enum):
 class EmailLabel(str, Enum):
     """Standard labels that can be applied to emails."""
     INBOX = "inbox"
+    SENT = "sent"
     ACTION_REQUIRED = "action_required"
     FOLLOW_UP = "follow_up"
     FYI = "fyi"

@@ -84,6 +84,11 @@ async def process_email_endpoint(request: ProcessRequest):
     email = mail_api.get_email(request.email_id)
     if not email:
         raise HTTPException(status_code=404, detail=f"Email {request.email_id} not found")
+    if EmailLabel.INBOX not in email.labels:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Email {request.email_id} is not an inbox message and cannot be processed as incoming mail",
+        )
 
     run_id = f"run-{uuid.uuid4().hex[:8]}"
     tracer = create_tracer(run_id)

@@ -34,7 +34,7 @@
     "subject": "Re: Q3 ML Model Performance Review",
     "body": "Mike,\n\nGreat results! Let's definitely discuss the rollout. A few things I want to cover:\n1. Canary deployment strategy\n2. Rollback criteria\n3. Monitoring dashboards\n\nHow about Thursday at 2 PM?\n\nCheers",
     "timestamp": "2026-06-22T16:00:00",
-    "labels": ["inbox"],
+    "labels": ["sent"],
     "is_read": true,
     "attachments": []
   },

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -54,14 +54,19 @@ def fetch_inbox(
     label: Optional[EmailLabel] = None,
     limit: int = 50,
 ) -> list[EmailMessage]:
-    """Fetch emails from the inbox with optional filters."""
+    """Fetch inbox emails with optional filters.
+
+    By default this returns only messages carrying the inbox label. Messages
+    kept only as thread context, such as sent replies, remain retrievable by ID
+    or thread but are not listed as actionable inbox items.
+    """
     emails = list(_inbox.values())
+    effective_label = label or EmailLabel.INBOX
+    emails = [e for e in emails if effective_label in e.labels]
     if unread_only:
         emails = [e for e in emails if not e.is_read]
-    if label:
-        emails = [e for e in emails if label in e.labels]
     emails.sort(key=lambda e: e.timestamp, reverse=True)
-    logger.info("inbox_fetched", total=len(emails), unread_only=unread_only, label=label)
+    logger.info("inbox_fetched", total=len(emails), unread_only=unread_only, label=effective_label)
     return emails[:limit]
 
 

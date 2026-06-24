@@ -1,7 +1,6 @@
 """Tests for tools — mail_api, calendar_api, and knowledge_store."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from app.tools.mail_api import (
     apply_label,
@@ -42,6 +41,22 @@ class TestMailAPI:
         """Inbox should be seeded with sample emails."""
         emails = fetch_inbox()
         assert len(emails) > 0
+        assert "email-003" not in {email.id for email in emails}
+        assert all(EmailLabel.INBOX in email.labels for email in emails)
+
+    def test_sent_thread_context_not_listed_as_inbox(self):
+        """Sent thread-history messages should not appear in the default inbox."""
+        sent_context = get_email("email-003")
+        assert sent_context is not None
+        assert sent_context.from_address == "user@company.com"
+        assert EmailLabel.SENT in sent_context.labels
+        assert EmailLabel.INBOX not in sent_context.labels
+
+        inbox = fetch_inbox()
+        assert all(email.id != "email-003" for email in inbox)
+
+        sent_label_messages = fetch_inbox(label=EmailLabel.SENT)
+        assert any(email.id == "email-003" for email in sent_label_messages)
 
     def test_fetch_inbox_unread_filter(self):
         """Should filter to unread emails only."""
@@ -70,6 +85,7 @@ class TestMailAPI:
         """Should return all messages in a thread, sorted chronologically."""
         thread = get_thread("thread-002")
         assert len(thread) >= 2
+        assert {email.id for email in thread} >= {"email-002", "email-003"}
         # Verify chronological order
         for i in range(1, len(thread)):
             assert thread[i].timestamp >= thread[i - 1].timestamp
