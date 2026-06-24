@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Assistant</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; border-radius: 12px; margin-bottom: 20px; }
+        header h1 { font-size: 1.8em; }
+        header p { opacity: 0.9; margin-top: 5px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .panel h2 { font-size: 1.2em; margin-bottom: 15px; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 8px; }
+        .email-item { padding: 12px; border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; }
+        .email-item:hover { border-color: #667eea; background: #f8f9ff; }
+        .email-item.selected { border-color: #667eea; background: #eef0ff; }
+        .email-item .subject { font-weight: 600; font-size: 0.95em; }
+        .email-item .meta { font-size: 0.8em; color: #666; margin-top: 4px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-success { background: #059669; color: white; }
+        .btn-success:hover { background: #047857; }
+        .btn-warning { background: #d97706; color: white; }
+        .btn-warning:hover { background: #b45309; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8em; }
+        .result-box { background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-top: 15px; max-height: 500px; overflow-y: auto; }
+        .result-box pre { white-space: pre-wrap; font-size: 0.85em; }
+        .approval-item { padding: 12px; border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 10px; }
+        .approval-item .actions { margin-top: 10px; display: flex; gap: 8px; }
+        .status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-edited { background: #dbeafe; color: #1e40af; }
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .metric-card { background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center; }
+        .metric-card .value { font-size: 1.8em; font-weight: 700; color: #667eea; }
+        .metric-card .label { font-size: 0.8em; color: #666; margin-top: 4px; }
+        .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+        .bar-row { display: grid; grid-template-columns: 180px 1fr 70px; gap: 10px; align-items: center; font-size: 0.85em; }
+        .bar-label { color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bar-track { background: #eef2ff; border-radius: 999px; height: 14px; overflow: hidden; }
+        .bar-fill { background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; border-radius: 999px; min-width: 2px; }
+        .bar-value { color: #555; text-align: right; font-weight: 600; }
+        .tab-bar { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; border-radius: 8px 8px 0 0; cursor: pointer; background: #e2e8f0; font-weight: 500; }
+        .tab.active { background: white; border-bottom: 3px solid #667eea; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .full-width { grid-column: 1 / -1; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; resize: vertical; min-height: 80px; }
+        .loading { text-align: center; padding: 20px; color: #667eea; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.7em; font-weight: 600; margin-left: 8px; }
+        .badge-urgent { background: #fee2e2; color: #dc2626; }
+        .badge-high { background: #fef3c7; color: #d97706; }
+        .badge-normal { background: #dbeafe; color: #2563eb; }
+        .badge-low { background: #d1fae5; color: #059669; }
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; z-index: 1000; }
+        .toast-success { background: #059669; }
+        .toast-error { background: #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Email Assistant</h1>
+            <p>Agent-based email management with human-in-the-loop oversight</p>
+        </header>
+
+        <div class="tab-bar">
+            <div class="tab active" id="tab-btn-inbox" onclick="switchTab('inbox')">Inbox</div>
+            <div class="tab" id="tab-btn-approvals" onclick="switchTab('approvals')">Approvals</div>
+            <div class="tab" id="tab-btn-metrics" onclick="switchTab('metrics')">Metrics</div>
+        </div>
+
+        <div id="tab-inbox" class="tab-content active">
+            <div class="grid">
+                <div class="panel">
+                    <h2>Inbox <button class="btn btn-sm btn-primary" onclick="loadInbox()" style="float:right">Refresh</button></h2>
+                    <div id="inbox-list"><div class="loading">Loading...</div></div>
+                </div>
+                <div class="panel">
+                    <h2>Processing Result</h2>
+                    <div id="process-result">
+                        <p style="color:#666; text-align:center; padding:40px 0">Click an email to read it, then process it with the agent pipeline.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-approvals" class="tab-content">
+            <div class="panel">
+                <h2>Pending Approvals <button class="btn btn-sm btn-primary" onclick="loadApprovals()" style="float:right">Refresh</button></h2>
+                <div id="approvals-list"><div class="loading">Loading...</div></div>
+            </div>
+        </div>
+
+        <div id="tab-metrics" class="tab-content">
+            <div class="grid">
+                <div class="panel">
+                    <h2>Counters</h2>
+                    <div id="metrics-counters"></div>
+                </div>
+                <div class="panel">
+                    <h2>Latencies</h2>
+                    <div id="metrics-latencies"></div>
+                </div>
+                <div class="panel full-width">
+                    <h2>Traces <button class="btn btn-sm btn-primary" onclick="loadTraces()" style="float:right">Refresh</button></h2>
+                    <div id="traces-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var selectedEmailId = null;
+        var approvalsData = [];
+
+        function toast(msg, type) {
+            var el = document.createElement('div');
+            el.className = 'toast toast-' + (type || 'success');
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(function() { el.remove(); }, 3000);
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+            document.getElementById('tab-btn-' + name).classList.add('active');
+            document.getElementById('tab-' + name).classList.add('active');
+            if (name === 'approvals') loadApprovals();
+            if (name === 'metrics') { loadMetrics(); loadTraces(); }
+        }
+
+        function apiCall(method, path, body, callback) {
+            var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+            if (body) opts.body = JSON.stringify(body);
+            fetch(path, opts)
+                .then(function(r) { return r.json(); })
+                .then(callback)
+                .catch(function(e) { console.error('API error:', e); callback({ error: e.message }); });
+        }
+
+        function loadInbox() {
+            var list = document.getElementById('inbox-list');
+            list.innerHTML = '<div class="loading">Loading...</div>';
+            apiCall('GET', '/inbox/?unread_only=false', null, function(data) {
+                if (data.error || !data.emails || data.emails.length === 0) {
+                    list.innerHTML = '<p style="text-align:center;color:#666;padding:20px">No emails found. ' + (data.error || '') + '</p>';
+                    return;
+                }
+                var html = '';
+                data.emails.forEach(function(e) {
+                    var cls = (selectedEmailId === e.id) ? 'email-item selected' : 'email-item';
+                    var icon = e.is_read ? '[read]' : '[new]';
+                    html += '<div class="' + cls + '" onclick="selectEmail(\'' + e.id + '\')">';
+                    html += '<div class="subject">' + icon + ' ' + e.subject + '</div>';
+                    html += '<div class="meta">From: ' + e.from_address + ' | ' + e.timestamp + '</div>';
+                    html += '</div>';
+                });
+                list.innerHTML = html;
+            });
+        }
+
+        function selectEmail(id) {
+            selectedEmailId = id;
+            loadInbox();
+            var resultDiv = document.getElementById('process-result');
+            resultDiv.innerHTML = '<div class="loading">Loading email...</div>';
+            apiCall('GET', '/inbox/' + id, null, function(e) {
+                if (e.error) {
+                    resultDiv.innerHTML = '<p style="color:red">Error: ' + e.error + '</p>';
+                    return;
+                }
+                var html = '<div style="margin-bottom:15px">';
+                html += '<h3 style="margin-bottom:8px">' + e.subject + '</h3>';
+                html += '<p style="font-size:0.85em;color:#666"><strong>From:</strong> ' + e.from_address + '</p>';
+                html += '<p style="font-size:0.85em;color:#666"><strong>To:</strong> ' + e.to_addresses.join(', ') + '</p>';
+                if (e.cc_addresses && e.cc_addresses.length) {
+                    html += '<p style="font-size:0.85em;color:#666"><strong>CC:</strong> ' + e.cc_addresses.join(', ') + '</p>';
+                }
+                html += '<p style="font-size:0.85em;color:#666"><strong>Date:</strong> ' + e.timestamp + '</p>';
+                html += '<p style="font-size:0.85em;color:#666"><strong>Labels:</strong> ' + e.labels.join(', ') + '</p>';
+                html += '</div>';
+                html += '<div style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:8px;padding:15px;margin-bottom:15px;white-space:pre-wrap;font-size:0.9em;line-height:1.5">' + e.body + '</div>';
+                html += '<button class="btn btn-primary" onclick="processEmail(\'' + id + '\')">Process with Agent Pipeline</button>';
+                resultDiv.innerHTML = html;
+            });
+        }
+
+        function processEmail(id) {
+            var resultDiv = document.getElementById('process-result');
+            resultDiv.innerHTML = '<div class="loading">Processing through agent pipeline...</div>';
+            apiCall('POST', '/inbox/process', { email_id: id }, function(result) {
+                if (result.error) {
+                    resultDiv.innerHTML = '<p style="color:red">Error: ' + result.error + '</p>';
+                    return;
+                }
+                var html = '<div class="result-box">';
+                if (result.classification) {
+                    var cls = result.classification;
+                    html += '<p><strong>Classification:</strong></p>';
+                    html += '<p>Intent: <strong>' + cls.intent + '</strong> <span class="badge badge-' + cls.priority + '">' + cls.priority + '</span></p>';
+                    html += '<p>Summary: ' + cls.summary + '</p><hr style="margin:10px 0">';
+                }
+                if (result.draft_reply) {
+                    var d = result.draft_reply;
+                    html += '<p><strong>Draft Reply:</strong></p>';
+                    html += '<p>To: ' + d.to_addresses.join(', ') + '</p>';
+                    html += '<p>Subject: ' + d.subject + '</p>';
+                    html += '<p>Tone: ' + d.tone + '</p>';
+                    html += '<pre style="background:#fff;padding:10px;border-radius:6px;margin-top:8px">' + d.body + '</pre>';
+                    html += '<hr style="margin:10px 0">';
+                }
+                if (result.thread_summary) {
+                    var s = result.thread_summary;
+                    html += '<p><strong>Summary:</strong> ' + s.summary + '</p>';
+                    if (s.key_points) html += '<p>Key points: ' + s.key_points.join(', ') + '</p>';
+                    html += '<hr style="margin:10px 0">';
+                }
+                if (result.pending_approvals && result.pending_approvals.length > 0) {
+                    html += '<p><strong>Pending Approvals:</strong> ' + result.pending_approvals.length + '</p>';
+                    html += '<p style="font-size:0.85em;color:#666">Go to the Approvals tab to approve/reject/edit.</p>';
+                }
+                if (result.errors && result.errors.length > 0) {
+                    html += '<p style="color:red"><strong>Errors:</strong> ' + result.errors.join(', ') + '</p>';
+                }
+                html += '</div>';
+                resultDiv.innerHTML = html;
+                toast('Email processed!');
+            });
+        }
+
+        function loadApprovals() {
+            var list = document.getElementById('approvals-list');
+            list.innerHTML = '<div class="loading">Loading...</div>';
+            apiCall('GET', '/approvals/', null, function(data) {
+                if (data.error || !data.approvals || data.approvals.length === 0) {
+                    list.innerHTML = '<p style="text-align:center;color:#666;padding:20px">No approvals yet. Process an email first.</p>';
+                    return;
+                }
+                approvalsData = data.approvals;
+                var html = '';
+                data.approvals.forEach(function(a, idx) {
+                    var payload = a.payload || {};
+                    html += '<div class="approval-item" id="approval-card-' + escapeHtml(a.approval_id) + '">';
+                    html += '<div><strong>' + escapeHtml(a.action_type) + '</strong> <span class="status status-' + escapeHtml(a.status) + '">' + escapeHtml(a.status) + '</span></div>';
+                    html += '<div style="font-size:0.85em;color:#666;margin-top:4px">' + escapeHtml(a.description) + '</div>';
+                    html += '<div style="font-size:0.8em;color:#999;margin-top:2px">ID: ' + escapeHtml(a.approval_id) + '</div>';
+                    if (payload.body) {
+                        html += '<div style="margin-top:10px">';
+                        html += '<p style="font-size:0.8em;font-weight:600">To: ' + escapeHtml((payload.to_addresses || []).join(', ')) + '</p>';
+                        html += '<p style="font-size:0.8em;color:#666">Subject: ' + escapeHtml(payload.subject || '') + '</p>';
+                        html += '<pre style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-top:6px;font-size:0.8em;white-space:pre-wrap;max-height:150px;overflow-y:auto">' + escapeHtml(payload.body) + '</pre>';
+                        html += '</div>';
+                    } else if (payload.description) {
+                        html += '<div style="margin-top:10px;font-size:0.85em;background:#f8f9fa;padding:10px;border-radius:6px">' + escapeHtml(payload.description) + '</div>';
+                    }
+                    if (a.status === 'pending') {
+                        html += '<div class="actions">';
+                        html += '<button class="btn btn-sm btn-success" onclick="approveAction(' + idx + ')">Approve</button>';
+                        html += '<button class="btn btn-sm btn-warning" onclick="editActionById(\'' + a.approval_id + '\')">Edit & Approve</button>';
+                        html += '<button class="btn btn-sm btn-danger" onclick="rejectAction(' + idx + ')">Reject</button>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                });
+                list.innerHTML = html;
+            });
+        }
+
+        function approveAction(idx) {
+            var id = approvalsData[idx].approval_id;
+            apiCall('POST', '/approvals/' + id + '/decide', { decision: 'approved', feedback: 'Approved via UI' }, function() {
+                toast('Approved!');
+                loadApprovals();
+            });
+        }
+
+        function rejectAction(idx) {
+            var id = approvalsData[idx].approval_id;
+            apiCall('POST', '/approvals/' + id + '/decide', { decision: 'rejected', feedback: 'Rejected via UI' }, function() {
+                toast('Rejected', 'error');
+                loadApprovals();
+            });
+        }
+
+        function editAction(idx) {
+            var a = approvalsData[idx];
+            editActionById(a.approval_id);
+        }
+
+        function editActionById(approvalId) {
+            apiCall('GET', '/approvals/' + approvalId, null, function(a) {
+                if (a.error) {
+                    toast('Could not load approval for editing', 'error');
+                    return;
+                }
+                renderApprovalEditor(a);
+            });
+        }
+
+        function renderApprovalEditor(a) {
+            var payload = a.payload || {};
+            var currentBody = payload.body || '';
+            var card = document.getElementById('approval-card-' + a.approval_id);
+            if (!card) return;
+
+            var editor = '<div><strong>Edit & Approve Reply</strong> <span class="status status-pending">editing</span></div>';
+            editor += '<div style="font-size:0.85em;color:#666;margin-top:4px">' + escapeHtml(a.description || '') + '</div>';
+            editor += '<div style="font-size:0.8em;color:#999;margin-top:2px">ID: ' + escapeHtml(a.approval_id || '') + '</div>';
+            editor += '<div style="margin-top:10px;background:#f8f9fa;border:1px solid #e2e8f0;border-radius:8px;padding:10px">';
+            editor += '<p style="font-size:0.8em;font-weight:600">To: ' + escapeHtml((payload.to_addresses || []).join(', ')) + '</p>';
+            editor += '<p style="font-size:0.8em;color:#666">Subject: ' + escapeHtml(payload.subject || '') + '</p>';
+            editor += '</div>';
+            editor += '<div style="margin-top:10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px">';
+            editor += '<p style="font-size:0.8em;font-weight:600;margin-bottom:6px">Proposed reply preview:</p>';
+            editor += '<pre style="white-space:pre-wrap;font-size:0.85em;line-height:1.5;max-height:180px;overflow:auto">' + escapeHtml(currentBody || '(No draft body found)') + '</pre>';
+            editor += '</div>';
+            editor += '<p style="font-size:0.85em;color:#666;margin-top:10px;margin-bottom:8px">Modify the proposed reply below, then click Save & Send:</p>';
+            editor += '<textarea id="edit-body-' + a.approval_id + '" style="width:100%;min-height:240px;padding:10px;border:2px solid #667eea;border-radius:8px;font-family:inherit;font-size:0.9em;line-height:1.5;background:#fff"></textarea>';
+            editor += '<div style="margin-top:10px;display:flex;gap:8px">';
+            editor += '<button class="btn btn-success" onclick="submitEditById(\'' + a.approval_id + '\')">Save & Send</button>';
+            editor += '<button class="btn btn-sm" style="background:#e2e8f0" onclick="loadApprovals()">Cancel</button>';
+            editor += '</div>';
+            card.innerHTML = editor;
+
+            var textarea = document.getElementById('edit-body-' + a.approval_id);
+            textarea.value = currentBody;
+            textarea.focus();
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function submitEdit(idx) {
+            var id = approvalsData[idx].approval_id;
+            submitEditById(id);
+        }
+
+        function submitEditById(id) {
+            var newBody = document.getElementById('edit-body-' + id).value;
+            apiCall('POST', '/approvals/' + id + '/decide', {
+                decision: 'edited',
+                edited_payload: { body: newBody },
+                feedback: 'Edited via UI'
+            }, function() {
+                toast('Edited and sent!');
+                loadApprovals();
+            });
+        }
+
+        function loadMetrics() {
+            apiCall('GET', '/metrics', null, function(data) {
+                if (data.error) return;
+                var counterEntries = Object.keys(data.counters)
+                    .filter(function(k) { return data.counters[k] > 0; })
+                    .map(function(k) { return { label: k.replace(/_/g, ' '), value: data.counters[k] }; });
+                document.getElementById('metrics-counters').innerHTML = renderBarChart(counterEntries, 'count') || '<p style="color:#666">No activity yet</p>';
+
+                var latencyEntries = Object.keys(data.latencies)
+                    .filter(function(k) { return data.latencies[k].count > 0; })
+                    .map(function(k) {
+                        var v = data.latencies[k];
+                        return { label: k.replace(/_/g, ' ') + ' (' + v.count + ')', value: Math.round(v.avg_ms), suffix: 'ms' };
+                    });
+                document.getElementById('metrics-latencies').innerHTML = renderBarChart(latencyEntries, 'ms') || '<p style="color:#666">No data yet</p>';
+            });
+        }
+
+        function renderBarChart(entries, defaultSuffix) {
+            if (!entries || entries.length === 0) return '';
+            var maxValue = Math.max.apply(null, entries.map(function(e) { return e.value; }));
+            var html = '<div style="display:flex;flex-direction:column;gap:10px;width:100%">';
+            entries.forEach(function(e) {
+                var pct = maxValue > 0 ? Math.max(4, Math.round((e.value / maxValue) * 100)) : 0;
+                var suffix = e.suffix || defaultSuffix || '';
+                html += '<div style="display:grid;grid-template-columns:170px 1fr 70px;gap:10px;align-items:center;font-size:0.85em">';
+                html += '<div style="color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + e.label + '">' + e.label + '</div>';
+                html += '<div style="height:16px;background:#e8edff;border-radius:999px;overflow:hidden;box-shadow:inset 0 0 0 1px #d8defc">';
+                html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:999px"></div>';
+                html += '</div>';
+                html += '<div style="color:#555;text-align:right;font-weight:700">' + e.value + (suffix === 'count' ? '' : suffix) + '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function loadTraces() {
+            apiCall('GET', '/traces', null, function(data) {
+                if (data.error || !data.traces || data.traces.length === 0) {
+                    document.getElementById('traces-list').innerHTML = '<p style="color:#666">No traces yet</p>';
+                    return;
+                }
+                var html = '';
+                data.traces.forEach(function(t) {
+                    html += '<div style="padding:8px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:8px">';
+                    html += '<strong>' + t.run_id + '</strong> - ' + t.total_spans + ' span(s)';
+                    t.spans.forEach(function(s) {
+                        var icon = s.status === 'success' ? '[ok]' : '[err]';
+                        html += '<div style="font-size:0.8em;color:#666;margin-left:20px">' + icon + ' [' + s.span_type + '] ' + s.name + ' - ' + s.duration_ms.toFixed(0) + 'ms</div>';
+                    });
+                    html += '</div>';
+                });
+                document.getElementById('traces-list').innerHTML = html;
+            });
+        }
+
+        // Load inbox on page load
+        loadInbox();
+    </script>
+</body>
+</html>
+
