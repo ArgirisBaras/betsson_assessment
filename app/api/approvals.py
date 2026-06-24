@@ -115,10 +115,17 @@ async def decide_approval(approval_id: str, decision: ApprovalDecision):
         metrics.increment("drafts_edited")
         logger.info("approval_edited", approval_id=approval_id)
 
+        # ── Memory feedback loop: learn from user edits ──────────────────
+        _learn_from_edit(approval, decision.edited_payload, decision.feedback)
+
     elif decision.decision == ApprovalStatus.REJECTED:
         result["execution"] = {"status": "cancelled"}
         metrics.increment("drafts_rejected")
         logger.info("approval_rejected", approval_id=approval_id, feedback=decision.feedback)
+
+        # ── Memory feedback loop: learn from rejections ──────────────────
+        if decision.feedback:
+            _learn_from_rejection(approval, decision.feedback)
 
     return result
 
@@ -155,4 +162,78 @@ def _execute_action(approval: dict, payload: dict) -> dict:
 
     else:
         return {"status": "unknown_action", "action_type": action_type}
+
+
+# ── Memory feedback: evolve behavior from user decisions ─────────────────────
+
+def _learn_from_edit(approval: dict, edited_payload: dict | None, feedback: str) -> None:
+    """Learn from user edits to evolve future drafting behavior.
+
+    When a user edits a draft before sending, we store their preferences
+    in long-term memory so future drafts better match their style.
+    """
+    from app.memory.long_term import store_preference
+    from app.schemas.memory import UserPreference
+
+    try:
+        original_payload = approval.get("payload", {})
+        original_tone = original_payload.get("tone", "")
+        new_tone = edited_payload.get("tone", "") if edited_payload else ""
+
+        # Learn tone preference if the user changed it
+        if new_tone and new_tone != original_tone:
+            store_preference(UserPreference(
+                key="preferred_reply_tone",
+                value=new_tone,
+                description=f"User changed tone from '{original_tone}' to '{new_tone}' during approval",
+            ))
+            logger.info("memory_learned_tone_preference", original=original_tone, new=new_tone)
+
+        # Store general feedback as a drafting preference
+        if feedback:
+            store_preference(UserPreference(
+                key="drafting_feedback",
+                value=feedback,
+                description=f"User feedback on draft for: {approval.get('description', 'N/A')}",
+            ))
+            logger.info("memory_learned_from_feedback", feedback=feedback[:100])
+
+        # If the user significantly rewrote the body, note the style preference
+        if edited_payload and "body" in edited_payload:
+            original_body = original_payload.get("body", "")
+            new_body = edited_payload["body"]
+            # Simple heuristic: if more than 50% was changed, store as style hint
+            if original_body and len(new_body) > 0:
+                overlap = sum(1 for w in new_body.split() if w in original_body)
+                similarity = overlap / max(len(new_body.split()), 1)
+                if similarity < 0.5:
+                    store_preference(UserPreference(
+                        key="reply_style_example",
+                        value=new_body[:500],
+                        description=f"User-written reply example (to: {original_payload.get('to_addresses', [])})",
+                    ))
+                    logger.info("memory_learned_reply_style", similarity=round(similarity, 2))
+
+    except Exception as exc:
+        logger.warning("memory_learning_from_edit_failed", error=str(exc))
+
+
+def _learn_from_rejection(approval: dict, feedback: str) -> None:
+    """Learn from rejected actions to avoid similar proposals in the future."""
+    from app.memory.long_term import store_preference
+    from app.schemas.memory import UserPreference
+
+    try:
+        store_preference(UserPreference(
+            key="rejection_feedback",
+            value=feedback,
+            description=(
+                f"User rejected action '{approval.get('action_type', '')}': "
+                f"{approval.get('description', 'N/A')}"
+            ),
+        ))
+        logger.info("memory_learned_from_rejection", feedback=feedback[:100])
+    except Exception as exc:
+        logger.warning("memory_learning_from_rejection_failed", error=str(exc))
+
 
