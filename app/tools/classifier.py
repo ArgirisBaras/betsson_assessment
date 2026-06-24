@@ -7,11 +7,10 @@ Falls back to a rule-based heuristic if the LLM is unavailable.
 from __future__ import annotations
 
 import structlog
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
-from app.config import settings
+from app.llm.provider import create_chat_model
 from app.observability.metrics import metrics
 from app.schemas.email import (
     ClassifiedEmail,
@@ -65,11 +64,7 @@ async def classify_email(
     Falls back to rule-based classification if LLM fails.
     """
     try:
-        llm = ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            temperature=0.0,
-        )
+        llm = create_chat_model(temperature=0.0)
         structured_llm = llm.with_structured_output(ClassificationOutput)
 
         result: ClassificationOutput = await structured_llm.ainvoke(
@@ -109,29 +104,33 @@ async def classify_email(
 
 def _fallback_classify(email: EmailMessage) -> ClassifiedEmail:
     """Rule-based fallback classifier when LLM is unavailable."""
-    subject_lower = email.body.lower() + " " + email.subject.lower()
+    subject_lower = email.subject.lower()
+    text_lower = email.body.lower() + " " + subject_lower
 
     # Simple keyword-based rules
-    if any(w in subject_lower for w in ["urgent", "asap", "immediately", "critical"]):
+    if any(w in text_lower for w in ["urgent", "asap", "immediately", "critical"]):
         priority = EmailPriority.URGENT
         intent = EmailIntent.REQUEST
         labels = [EmailLabel.ACTION_REQUIRED]
-    elif any(w in subject_lower for w in ["meeting", "invite", "calendar", "schedule"]):
-        priority = EmailPriority.HIGH
-        intent = EmailIntent.MEETING_INVITE
-        labels = [EmailLabel.MEETING]
-    elif any(w in subject_lower for w in ["follow up", "following up", "check in", "reminder"]):
-        priority = EmailPriority.NORMAL
-        intent = EmailIntent.FOLLOW_UP
-        labels = [EmailLabel.FOLLOW_UP]
-    elif "?" in email.subject or any(w in subject_lower for w in ["question", "help", "how to"]):
-        priority = EmailPriority.NORMAL
-        intent = EmailIntent.QUESTION
-        labels = [EmailLabel.ACTION_REQUIRED]
-    elif any(w in subject_lower for w in ["fyi", "info", "update", "newsletter"]):
+    elif (
+        any(w in subject_lower for w in ["fyi", "info", "update", "newsletter"])
+        or "for your information" in text_lower
+    ):
         priority = EmailPriority.LOW
         intent = EmailIntent.INFORMATION
         labels = [EmailLabel.FYI]
+    elif any(w in text_lower for w in ["meeting", "invite", "calendar", "schedule"]):
+        priority = EmailPriority.HIGH
+        intent = EmailIntent.MEETING_INVITE
+        labels = [EmailLabel.MEETING]
+    elif any(w in text_lower for w in ["follow up", "following up", "check in", "reminder"]):
+        priority = EmailPriority.NORMAL
+        intent = EmailIntent.FOLLOW_UP
+        labels = [EmailLabel.FOLLOW_UP]
+    elif "?" in email.subject or any(w in text_lower for w in ["question", "help", "how to"]):
+        priority = EmailPriority.NORMAL
+        intent = EmailIntent.QUESTION
+        labels = [EmailLabel.ACTION_REQUIRED]
     else:
         priority = EmailPriority.NORMAL
         intent = EmailIntent.INFORMATION

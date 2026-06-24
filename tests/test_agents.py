@@ -1,9 +1,8 @@
 """Tests for individual agent functions."""
 
-import pytest
 from datetime import datetime
 
-from app.schemas.email import EmailMessage, EmailLabel
+from app.schemas.email import EmailMessage
 from app.tools.classifier import _fallback_classify
 
 
@@ -47,6 +46,17 @@ def test_fallback_classify_question():
 def test_fallback_classify_fyi():
     """Test fallback classifier detects FYI emails."""
     email = _make_email(subject="FYI: New policy update", body="For your information, the policy has been updated")
+    result = _fallback_classify(email)
+    assert result.intent.value == "information"
+    assert result.priority.value == "low"
+
+
+def test_fallback_classify_fyi_policy_with_schedule_wording():
+    """Explicit FYI policy updates should not be misclassified as meetings."""
+    email = _make_email(
+        subject="FYI: Updated Remote Work Policy",
+        body="Hybrid schedule: minimum 2 days in office per week.",
+    )
     result = _fallback_classify(email)
     assert result.intent.value == "information"
     assert result.priority.value == "low"

@@ -6,13 +6,13 @@ Produces structured ThreadSummary with key points, action items, and sentiment.
 from __future__ import annotations
 
 import time
+from typing import Any, cast
 
 import structlog
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.config import settings
+from app.llm.provider import create_chat_model
 from app.observability.metrics import metrics
 from app.observability.tracing import get_tracer
 from app.schemas.email import EmailMessage, ThreadSummary
@@ -34,10 +34,7 @@ SUMMARIZE_PROMPT = ChatPromptTemplate.from_messages([
     ),
 ])
 
-
-class SummaryOutput(ThreadSummary):
-    """LLM structured output for thread summarization."""
-    pass
+SummaryOutput = ThreadSummary
 
 
 async def summarizer_node(state: dict) -> dict:
@@ -56,12 +53,14 @@ async def summarizer_node(state: dict) -> dict:
             "errors": state.get("errors", []) + ["No email for summarization"],
             "messages": [AIMessage(content="Error: No email to summarize.")],
         }
+    email_data = cast(dict[str, Any], email_data)
 
-    thread_id = email_data["thread_id"]
+    current_email = EmailMessage(**email_data)
+    thread_id = current_email.thread_id
     thread_messages = mail_api.get_thread(thread_id)
 
     if not thread_messages:
-        thread_messages = [EmailMessage(**email_data)]
+        thread_messages = [current_email]
 
     # Build thread content for the LLM
     thread_content = _format_thread(thread_messages)
@@ -69,14 +68,10 @@ async def summarizer_node(state: dict) -> dict:
     start_time = time.time()
 
     try:
-        llm = ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            temperature=0.0,
-        )
+        llm = create_chat_model(temperature=0.0)
         structured_llm = llm.with_structured_output(SummaryOutput)
 
-        summary: SummaryOutput = await structured_llm.ainvoke(
+        summary: Any = await structured_llm.ainvoke(
             SUMMARIZE_PROMPT.format_messages(
                 thread_content=thread_content,
                 memory_context=memory_context,
@@ -86,7 +81,7 @@ async def summarizer_node(state: dict) -> dict:
     except Exception as exc:
         logger.warning("summarizer_llm_failed", error=str(exc))
         metrics.increment("llm_fallbacks")
-        summary = ThreadSummary(
+        summary = SummaryOutput(
             thread_id=thread_id,
             subject=email_data.get("subject", ""),
             summary=f"Thread with {len(thread_messages)} message(s) about: {email_data.get('subject', '')}",

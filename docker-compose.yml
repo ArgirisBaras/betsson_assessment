@@ -37,6 +37,7 @@ services:
     command: ["pytest", "tests/", "-v", "--tb=short"]
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-test}
+      - LLM_ENABLED=false
       - CHROMA_PATH=/tmp/chroma_test
       - PYTHONPATH=/app
     profiles:

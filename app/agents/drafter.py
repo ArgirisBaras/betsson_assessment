@@ -12,11 +12,10 @@ from datetime import datetime, timezone
 
 import structlog
 from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
-from app.config import settings
+from app.llm.provider import create_chat_model
 from app.observability.metrics import metrics
 from app.observability.tracing import get_tracer
 from app.schemas.actions import ActionType, ApprovalRequest, DraftReply
@@ -81,11 +80,7 @@ async def drafter_node(state: dict) -> dict:
     start_time = time.time()
 
     try:
-        llm = ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            temperature=0.3,
-        )
+        llm = create_chat_model(temperature=0.3)
         structured_llm = llm.with_structured_output(DraftOutput)
 
         draft_output: DraftOutput = await structured_llm.ainvoke(
