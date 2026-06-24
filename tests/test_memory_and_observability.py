@@ -1,7 +1,5 @@
 """Tests for memory subsystem and observability modules."""
 
-import pytest
-from datetime import datetime, timezone
 
 from app.memory.long_term import (
     get_memory_context,
@@ -151,6 +149,25 @@ class TestMetrics:
         snapshot = m.get_snapshot()
         assert snapshot["counters"]["classified_intent_request"] == 2
         assert snapshot["counters"]["classified_intent_question"] == 1
+
+
+    def test_default_approval_counters(self):
+        """Approval metrics should separate generic and action-specific counters."""
+        m = MetricsCollector()
+        counters = m.get_snapshot()["counters"]
+
+        for counter in [
+            "approvals_approved",
+            "approvals_rejected",
+            "approvals_edited",
+            "send_replies_approved",
+            "send_replies_rejected",
+            "send_replies_edited",
+            "follow_ups_approved",
+            "follow_ups_rejected",
+            "follow_ups_edited",
+        ]:
+            assert counters[counter] == 0
 
     def test_record_latency(self):
         """Should record and aggregate latency values."""
