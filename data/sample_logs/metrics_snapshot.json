@@ -1,0 +1,55 @@
+{
+  "counters": {
+    "emails_processed": 6,
+    "emails_classified": 6,
+    "drafts_generated": 3,
+    "drafts_approved": 2,
+    "drafts_rejected": 0,
+    "drafts_edited": 1,
+    "follow_ups_scheduled": 2,
+    "summaries_generated": 4,
+    "errors_total": 0,
+    "llm_calls": 12,
+    "llm_fallbacks": 0
+  },
+  "latencies": {
+    "classification_ms": {
+      "count": 6,
+      "avg_ms": 850.5,
+      "min_ms": 620.0,
+      "max_ms": 1200.0,
+      "p50_ms": 830.0
+    },
+    "summarization_ms": {
+      "count": 4,
+      "avg_ms": 1450.75,
+      "min_ms": 1100.0,
+      "max_ms": 1900.0,
+      "p50_ms": 1400.0
+    },
+    "drafting_ms": {
+      "count": 3,
+      "avg_ms": 1680.33,
+      "min_ms": 1400.0,
+      "max_ms": 2100.0,
+      "p50_ms": 1540.0
+    },
+    "scheduling_ms": {
+      "count": 2,
+      "avg_ms": 45.0,
+      "min_ms": 30.0,
+      "max_ms": 60.0,
+      "p50_ms": 45.0
+    },
+    "total_processing_ms": {
+      "count": 6,
+      "avg_ms": 2850.0,
+      "min_ms": 1500.0,
+      "max_ms": 4200.0,
+      "p50_ms": 2700.0
+    }
+  },
+  "uptime_seconds": 3600.0,
+  "snapshot_at": "2026-06-23T15:35:00.000Z"
+}
+

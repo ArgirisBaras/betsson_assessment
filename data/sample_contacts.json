@@ -1,0 +1,96 @@
+{
+  "contacts": [
+    {
+      "email": "sarah.chen@techcorp.com",
+      "name": "Sarah Chen",
+      "role": "Site Reliability Engineer",
+      "organization": "TechCorp (Infrastructure Partner)",
+      "relationship": "infrastructure partner contact",
+      "notes": "Primary contact for production infrastructure issues. Prefers direct, technical communication."
+    },
+    {
+      "email": "mike.johnson@company.com",
+      "name": "Mike Johnson",
+      "role": "Senior ML Engineer",
+      "organization": "Sportsbook AI/ML Team",
+      "relationship": "teammate",
+      "notes": "Works on odds recommendation models. Very detail-oriented. Part of the same scrum team."
+    },
+    {
+      "email": "lisa.wong@partner-brand.com",
+      "name": "Lisa Wong",
+      "role": "Technical Lead",
+      "organization": "Partner Brand (B2B Client)",
+      "relationship": "B2B client technical contact",
+      "notes": "Leading the integration of our sportsbook API. Important B2B relationship."
+    },
+    {
+      "email": "david.martinez@company.com",
+      "name": "David Martinez",
+      "role": "Scrum Master",
+      "organization": "Sportsbook AI/ML Team",
+      "relationship": "scrum master",
+      "notes": "Manages sprint ceremonies. Appreciates timely updates and demo preparations."
+    }
+  ],
+  "preferences": [
+    {
+      "key": "reply_tone",
+      "value": "professional but friendly",
+      "description": "User prefers professional but approachable tone in email replies"
+    },
+    {
+      "key": "urgency_threshold",
+      "value": "production_issues_always_urgent",
+      "description": "Any email mentioning production issues should be flagged as urgent"
+    },
+    {
+      "key": "auto_label_newsletters",
+      "value": "true",
+      "description": "Automatically label newsletters and mass emails as FYI"
+    },
+    {
+      "key": "follow_up_default_hours",
+      "value": "24",
+      "description": "Default follow-up reminder is set to 24 hours after the original email"
+    },
+    {
+      "key": "meeting_preference",
+      "value": "afternoons_preferred",
+      "description": "User prefers scheduling meetings in the afternoon (after 1 PM)"
+    }
+  ],
+  "org_facts": [
+    {
+      "fact_id": "org-001",
+      "category": "team",
+      "content": "The Sportsbook AI/ML team operates in 2-week sprints with reviews every other Tuesday at 10 AM CET.",
+      "source": "team wiki"
+    },
+    {
+      "fact_id": "org-002",
+      "category": "product",
+      "content": "The sportsbook platform serves 20+ brands across multiple markets. Live betting is the highest-revenue feature.",
+      "source": "product documentation"
+    },
+    {
+      "fact_id": "org-003",
+      "category": "policy",
+      "content": "Production incidents require a response within 15 minutes during business hours. P1 incidents need immediate escalation to the on-call team.",
+      "source": "incident management runbook"
+    },
+    {
+      "fact_id": "org-004",
+      "category": "technical",
+      "content": "The ML pipeline uses MLflow for experiment tracking, deployed on AWS SageMaker. Model artifacts stored in S3.",
+      "source": "architecture documentation"
+    },
+    {
+      "fact_id": "org-005",
+      "category": "project",
+      "content": "B2B API integration is a strategic priority for Q3 2026. The /odds endpoint supports both REST and WebSocket protocols.",
+      "source": "Q3 roadmap"
+    }
+  ]
+}
+

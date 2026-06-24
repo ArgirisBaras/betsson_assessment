@@ -1,0 +1,81 @@
+[
+  {
+    "id": "email-001",
+    "thread_id": "thread-001",
+    "from_address": "sarah.chen@techcorp.com",
+    "to_addresses": ["user@company.com"],
+    "cc_addresses": [],
+    "subject": "Urgent: Production API latency spike",
+    "body": "Hi,\n\nWe're seeing a significant latency spike on the production sportsbook API since 2:00 PM UTC. P99 latency has jumped from 200ms to 1.8s. This is affecting live betting markets across all brands.\n\nCan you investigate ASAP? The trading team is reporting timeouts on odds updates.\n\nThanks,\nSarah",
+    "timestamp": "2026-06-23T14:30:00",
+    "labels": ["inbox"],
+    "is_read": false,
+    "attachments": []
+  },
+  {
+    "id": "email-002",
+    "thread_id": "thread-002",
+    "from_address": "mike.johnson@company.com",
+    "to_addresses": ["user@company.com"],
+    "cc_addresses": ["team-ml@company.com"],
+    "subject": "Re: Q3 ML Model Performance Review",
+    "body": "Hey,\n\nFollowing up on our discussion last week about the odds recommendation model. The A/B test results are in:\n\n- Model v2.3 shows a 12% improvement in prediction accuracy\n- Latency reduced by 30ms per inference\n- False positive rate down from 4.2% to 2.8%\n\nCan we schedule a meeting to discuss the production rollout plan? I think we should target next sprint.\n\nBest,\nMike",
+    "timestamp": "2026-06-23T10:15:00",
+    "labels": ["inbox"],
+    "is_read": false,
+    "attachments": []
+  },
+  {
+    "id": "email-003",
+    "thread_id": "thread-002",
+    "from_address": "user@company.com",
+    "to_addresses": ["mike.johnson@company.com"],
+    "cc_addresses": ["team-ml@company.com"],
+    "subject": "Re: Q3 ML Model Performance Review",
+    "body": "Mike,\n\nGreat results! Let's definitely discuss the rollout. A few things I want to cover:\n1. Canary deployment strategy\n2. Rollback criteria\n3. Monitoring dashboards\n\nHow about Thursday at 2 PM?\n\nCheers",
+    "timestamp": "2026-06-22T16:00:00",
+    "labels": ["inbox"],
+    "is_read": true,
+    "attachments": []
+  },
+  {
+    "id": "email-004",
+    "thread_id": "thread-003",
+    "from_address": "lisa.wong@partner-brand.com",
+    "to_addresses": ["user@company.com", "support@company.com"],
+    "cc_addresses": [],
+    "subject": "Question about B2B API integration",
+    "body": "Hello,\n\nWe're integrating your sportsbook API into our platform and have a few questions:\n\n1. What's the rate limit for the /odds endpoint?\n2. Do you support WebSocket connections for live odds streaming?\n3. Is there a sandbox environment we can use for testing?\n\nWe're planning to go live in 3 weeks and want to make sure we're fully prepared.\n\nRegards,\nLisa Wong\nPartner Brand - Technical Lead",
+    "timestamp": "2026-06-23T09:45:00",
+    "labels": ["inbox"],
+    "is_read": false,
+    "attachments": []
+  },
+  {
+    "id": "email-005",
+    "thread_id": "thread-004",
+    "from_address": "hr@company.com",
+    "to_addresses": ["all-staff@company.com"],
+    "cc_addresses": [],
+    "subject": "FYI: Updated Remote Work Policy - July 2026",
+    "body": "Dear Team,\n\nPlease note the following updates to our remote work policy effective July 1, 2026:\n\n- Hybrid schedule: minimum 2 days in office per week\n- Core hours: 10 AM - 4 PM local time\n- Home office equipment allowance increased to €500/year\n\nPlease review the full policy document on the intranet.\n\nBest regards,\nHR Team",
+    "timestamp": "2026-06-22T08:00:00",
+    "labels": ["inbox"],
+    "is_read": false,
+    "attachments": ["remote_work_policy_v3.pdf"]
+  },
+  {
+    "id": "email-006",
+    "thread_id": "thread-005",
+    "from_address": "david.martinez@company.com",
+    "to_addresses": ["user@company.com"],
+    "cc_addresses": [],
+    "subject": "Sprint Review reminder - Tomorrow 10 AM",
+    "body": "Hi,\n\nJust a reminder that our sprint review is tomorrow (Tuesday) at 10 AM CET.\n\nPlease prepare a brief demo of the email classification pipeline you've been working on. The PO wants to see the accuracy metrics and the human-in-the-loop approval flow.\n\nThanks,\nDavid",
+    "timestamp": "2026-06-22T17:30:00",
+    "labels": ["inbox"],
+    "is_read": false,
+    "attachments": []
+  }
+]
+

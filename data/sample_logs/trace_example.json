@@ -1,0 +1,63 @@
+{
+  "run_id": "run-a1b2c3d4",
+  "start_time": "2026-06-23T14:35:00.000Z",
+  "total_spans": 5,
+  "spans": [
+    {
+      "span_id": "span-1719150900001",
+      "span_type": "orchestrator",
+      "name": "process_email",
+      "start_time": "2026-06-23T14:35:00.001Z",
+      "end_time": "2026-06-23T14:35:03.450Z",
+      "duration_ms": 3449,
+      "status": "success",
+      "error": null,
+      "metadata": {"email_id": "email-001"}
+    },
+    {
+      "span_id": "span-1719150900100",
+      "span_type": "agent",
+      "name": "reader",
+      "start_time": "2026-06-23T14:35:00.100Z",
+      "end_time": "2026-06-23T14:35:01.200Z",
+      "duration_ms": 1100,
+      "status": "success",
+      "error": null,
+      "metadata": {"email_id": "email-001", "intent": "request", "priority": "urgent"}
+    },
+    {
+      "span_id": "span-1719150901200",
+      "span_type": "tool",
+      "name": "classify_email",
+      "start_time": "2026-06-23T14:35:00.300Z",
+      "end_time": "2026-06-23T14:35:01.100Z",
+      "duration_ms": 800,
+      "status": "success",
+      "error": null,
+      "metadata": {"model": "gpt-4o-mini", "confidence": 0.95}
+    },
+    {
+      "span_id": "span-1719150901300",
+      "span_type": "agent",
+      "name": "drafter",
+      "start_time": "2026-06-23T14:35:01.300Z",
+      "end_time": "2026-06-23T14:35:03.000Z",
+      "duration_ms": 1700,
+      "status": "success",
+      "error": null,
+      "metadata": {"tone": "urgent_professional", "approval_id": "apr-x7y8z9"}
+    },
+    {
+      "span_id": "span-1719150903000",
+      "span_type": "tool",
+      "name": "memory_recall",
+      "start_time": "2026-06-23T14:35:00.150Z",
+      "end_time": "2026-06-23T14:35:00.280Z",
+      "duration_ms": 130,
+      "status": "success",
+      "error": null,
+      "metadata": {"collections_queried": ["contacts", "preferences", "org_facts"], "results_found": 7}
+    }
+  ]
+}
+
