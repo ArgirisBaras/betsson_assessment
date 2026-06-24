@@ -1,0 +1,47 @@
+services:
+  email-assistant:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CHROMA_PATH=/app/chroma_data
+    volumes:
+      - chroma_data:/app/chroma_data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Run the end-to-end demo script
+  demo:
+    build: .
+    command: ["python", "-u", "demo_script.py"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your-key-here}
+    depends_on:
+      email-assistant:
+        condition: service_healthy
+    network_mode: "service:email-assistant"
+    profiles:
+      - demo
+
+  # Run tests
+  tests:
+    build: .
+    command: ["pytest", "tests/", "-v", "--tb=short"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-test}
+      - CHROMA_PATH=/tmp/chroma_test
+      - PYTHONPATH=/app
+    profiles:
+      - test
+
+volumes:
+  chroma_data:
+
