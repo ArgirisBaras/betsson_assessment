@@ -104,7 +104,7 @@ This ensures the assistant becomes more aligned with the user's communication st
 
 ![Metrics & Tracing Dashboard](docs/screenshots/metrics_dashboard.png)
 
-*Live metrics after processing 6 emails: counters, classification breakdowns, latency histograms, and per-agent traces.*
+*Live metrics after processing 5 actionable inbox emails, with 1 sent sample retained for thread context: counters, classification breakdowns, latency histograms, and per-agent traces.*
 
 ## 🚀 Quick Start
 
