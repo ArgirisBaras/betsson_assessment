@@ -37,7 +37,7 @@ The system uses a **StateGraph** (LangGraph) as the orchestrator. Each email flo
 
 4. **Drafter Agent** — Composes contextual reply drafts enriched with memory context. Creates an `ApprovalRequest` for HITL review.
 
-5. **Scheduler Agent** — Determines follow-up timing based on priority and user preferences. Creates calendar events pending approval.
+5. **Scheduler Agent** — Determines follow-up timing based on priority and user preferences. Creates a follow-up proposal and `ApprovalRequest`; the calendar event is created only after human approval.
 
 All outgoing actions (sending emails, scheduling) require explicit human approval via the `/approvals` API.
 
@@ -47,7 +47,7 @@ All outgoing actions (sending emails, scheduling) require explicit human approva
 - Implemented as the **LangGraph `AgentState` TypedDict** — a structured dict that flows through the graph
 - Contains: message history, current email, classification, draft reply, pending approvals, memory context
 - Scoped to a single processing run; automatically managed by LangGraph's state management
-- Sliding context window prevents token overflow in LLM calls
+- Includes helper utilities for sliding context windows and state summarization; current prompts use compact email/thread context for deterministic demo behavior
 
 ### Long-Term Memory
 - **Hybrid memory store** with an always-available JSON/keyword backend and optional ChromaDB vector search. When an OpenAI API key is configured, ChromaDB uses `text-embedding-3-small` embeddings for true semantic retrieval — no local model download required. It contains three collections:
@@ -79,17 +79,17 @@ This ensures the assistant becomes more aligned with the user's communication st
 ### Structured Logging (structlog)
 - JSON-formatted logs with ISO timestamps
 - **Correlation IDs** propagated via FastAPI middleware (`X-Correlation-ID` header)
-- Every agent node, tool call, and API request is logged with contextual metadata
+- Agent nodes, key tool operations, and API requests are logged with contextual metadata
 - Log levels configurable via `LOG_LEVEL` environment variable
 
 ### Distributed Tracing
 - Custom **span-based tracing** for each orchestrator run
-- Records: agent transitions, tool invocations, LLM calls, durations
+- Records orchestrator/agent spans and durations; the span model supports tool/LLM span types for future deeper instrumentation
 - Trace data exposed via `GET /traces`
 - Each span captures: type (agent/tool/llm), name, duration_ms, status, metadata
 
 ### Metrics
-- **In-memory counters**: emails_processed, emails_classified, summaries_generated, drafts_generated/approved/rejected/edited, follow_ups_proposed/scheduled, errors, LLM calls/fallbacks
+- **In-memory counters**: emails_processed, emails_classified, summaries_generated, drafts_generated, approvals_approved/rejected/edited, send_replies_approved/rejected/edited, follow_ups_proposed/approved/rejected/edited/scheduled, errors, LLM calls/fallbacks
 - **Classification breakdowns**: dynamic counters such as `classified_intent_information`, `classified_intent_request`, `classified_priority_urgent`, and `classified_priority_normal`
 - **Latency histograms**: classification, summarization, drafting, scheduling, total processing (with avg, min, max, p50)
 - Metrics snapshot exposed via `GET /metrics` and visualized as bar charts in the Web UI Metrics tab
@@ -144,13 +144,13 @@ docker compose run --rm tests
 docker compose down
 ```
 
-> **Note**: The system works without an OpenAI key — it falls back to rule-based classification and template-based drafting. Set the key for full LLM-powered functionality.
+> **Note**: The system works without an OpenAI key — it falls back to rule-based classification and template-based drafting. Set the key for full LLM-powered functionality. Chat model creation is centralized in `app/llm/provider.py`; set `LLM_ENABLED=false` to force deterministic fallbacks without outbound LLM calls.
 
 > **Security note**: Never commit `.env` or paste API keys into `docker-compose.yml`. `.env` is already ignored by `.gitignore`.
 
 ### Option B: Local Python Setup
 
-**Prerequisites**: Python 3.11+ and an OpenAI API key.
+**Prerequisites**: Python 3.11+. An OpenAI API key is optional and enables LLM-powered classification, summarization, drafting, and ChromaDB/OpenAI embedding-based semantic memory search.
 
 ```bash
 # Clone and enter the project
@@ -187,7 +187,7 @@ docker compose --profile demo up --build
 # Option 2: CLI demo script (start server first, then run)
 python demo_script.py
 
-# Option 3: Jupyter notebook (start server first, then open notebook)
+# Option 3: Jupyter notebook (requires dev extras or Jupyter installed; start server first)
 jupyter notebook demo.ipynb
 
 # Option 4: Quick API test with curl
@@ -226,7 +226,7 @@ Once the server is running (`docker compose up --build`), open **http://localhos
    - Route to the appropriate agent (drafter, summarizer, or scheduler)
    - Generate a draft reply or schedule a follow-up
 
-3. **Review approvals** — Switch to the **👤 Approvals** tab. You'll see each pending action with the full proposed reply displayed.
+3. **Review approvals** — Switch to the **👤 Approvals** tab. You'll see each pending action with its proposed payload/details displayed.
 
 4. **Approve, Edit, or Reject:**
    - **✅ Approve** — Sends the reply as-is
@@ -234,7 +234,7 @@ Once the server is running (`docker compose up --build`), open **http://localhos
    - **❌ Reject** — Cancels the action
 
 5. **Monitor the system** — Switch to the **📊 Metrics** tab to see:
-   - Live counters (emails processed, drafts approved/rejected)
+   - Live counters (emails processed, approvals by decision/action type)
    - Classification counters by intent/priority
    - Bar charts for counters and latency statistics
    - Processing traces with timing for each agent run
@@ -252,7 +252,7 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 ```
 ├── Dockerfile                # Container image definition
 ├── docker-compose.yml        # One-command startup
-├── requirements.txt          # Pinned dependencies (pip)
+├── requirements.txt          # Python dependencies for pip
 ├── app/
 │   ├── main.py              # FastAPI app, lifespan, middleware
 │   ├── config.py             # Pydantic Settings (env vars)
@@ -272,6 +272,9 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 │   │   ├── calendar_api.py   # Mock calendar service
 │   │   ├── classifier.py     # LLM + fallback classifier
 │   │   └── knowledge_store.py # Hybrid JSON memory store + optional ChromaDB
+│   ├── llm/                  # LLM provider abstraction
+│   │   ├── provider.py       # Central ChatOpenAI creation + LLM_ENABLED policy
+│   │   └── __init__.py
 │   ├── memory/               # Memory subsystem
 │   │   ├── short_term.py     # LangGraph state helpers
 │   │   ├── long_term.py      # Domain-specific long-term memory methods
@@ -326,7 +329,7 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 
 1. **LangGraph over raw LangChain agents** — Provides explicit, debuggable state machines vs. opaque agent loops. Conditional edges make routing logic transparent and testable.
 
-2. **Structured output everywhere** — LLM calls use `with_structured_output()` with Pydantic models, ensuring type-safe, schema-validated responses. Fallback classifiers provide resilience.
+2. **Structured outputs at key boundaries** — LLM calls use `with_structured_output()` with Pydantic models where appropriate, and core API/domain objects are represented with Pydantic schemas. LangGraph state and approval payloads remain dict-based for framework compatibility.
 
 3. **Mock services by design** — Mail and calendar APIs are in-memory mocks, making the system fully testable without external dependencies. The interfaces are designed for easy swap to real APIs (Gmail, Outlook, Google Calendar).
 
@@ -338,7 +341,7 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 
 ## 🔮 Production Evolution Path
 
-- **LLM provider**: Swap `ChatOpenAI` for Azure OpenAI, Bedrock, or local models via LangChain abstraction
+- **LLM provider**: Extend `app/llm/provider.py` to support Azure OpenAI, Bedrock, or local models behind the same agent-facing interface
 - **Memory**: Migrate the `knowledge_store` interface to OpenSearch/Pinecone for scale; add Redis/Valkey for caching
 - **Mail integration**: Replace mock with Gmail API / Microsoft Graph
 - **Observability**: Add LangSmith for LLM tracing, Prometheus for metrics, OpenTelemetry for distributed tracing

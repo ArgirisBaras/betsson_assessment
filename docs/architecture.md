@@ -30,6 +30,7 @@ graph TB
         MAIL[Mail API<br/>Mock Adapter]
         CAL[Calendar API<br/>Mock Adapter]
         CLS[Classifier<br/>LLM + Fallback]
+        LLM[LLM Provider<br/>OpenAI + fallback policy]
         KS[Knowledge Store<br/>JSON + optional ChromaDB]
     end
 
@@ -43,7 +44,7 @@ graph TB
 
     subgraph "Observability"
         LOG[Structured Logging<br/>structlog + JSON]
-        TRACE[Distributed Tracing<br/>Span-based]
+        TRACE[Agent Tracing<br/>Span-based]
         METRICS[Metrics Collector<br/>Counters + Latencies]
     end
 
@@ -65,11 +66,14 @@ graph TB
     RDR --> CLS
     RDR --> KS
     SUM --> MAIL
-    DRF --> KS
-    SCH --> CAL
+    CLS --> LLM
+    SUM --> LLM
+    DRF --> LLM
 
     DRF -.->|approval| APR
     SCH -.->|approval| APR
+    APR -->|approved send| MAIL
+    APR -->|approved follow-up| CAL
 
     KS --> LTM
     LTM --> LTM_P
@@ -102,7 +106,7 @@ stateDiagram-v2
     Draft --> Schedule: meeting_invite\nor follow_up intent
     Draft --> [*]: draft ready\n(pending approval)
 
-    Schedule --> [*]: follow-up scheduled\n(pending approval)
+    Schedule --> [*]: follow-up proposed\n(pending approval)
 
     state Reader {
         [*] --> FetchEmail
@@ -132,6 +136,7 @@ sequenceDiagram
     participant MEM as Long-Term Memory
     participant CLS as Classifier
     participant DRF as Drafter
+    participant LLM as LLM Provider
     participant APR as Approval Store
     participant MAIL as Mail API
 
@@ -148,7 +153,8 @@ sequenceDiagram
     RDR-->>ORC: state update (classification, next_action=draft)
 
     ORC->>DRF: drafter_node(state)
-    DRF->>DRF: Generate draft via LLM
+    DRF->>LLM: Generate structured draft\n(or deterministic fallback)
+    LLM-->>DRF: DraftOutput
     DRF->>APR: Create ApprovalRequest
     DRF-->>ORC: state update (draft_reply, pending_approvals)
 
