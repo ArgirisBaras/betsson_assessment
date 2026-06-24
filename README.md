@@ -218,7 +218,7 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 
 **Step-by-step walkthrough:**
 
-1. **Browse inbox** — The left panel shows all 6 sample emails. Click any email to read its full content in the right panel.
+1. **Browse inbox** — The left panel shows the 5 actionable inbox emails. A sixth sample message is a sent reply retained as thread history/context. Click any inbox email to read its full content in the right panel.
 
 2. **Process an email** — After reading, click **"🤖 Process with Agent Pipeline"**. The system will:
    - Classify intent (request, question, meeting, FYI, etc.)
