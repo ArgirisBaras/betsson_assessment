@@ -202,15 +202,21 @@ curl -X POST http://localhost:8000/inbox/process \
 
 ### Run Tests
 
+Tests can be run either locally after installing the Python dependencies, or in Docker for an isolated environment.
+
+Run locally:
+
 ```bash
 pytest tests/ -v
 ```
 
-The Docker test command is:
+Run in Docker:
 
 ```bash
 docker compose run --rm tests
 ```
+
+The Docker test service builds the image, runs `pytest`, sets `LLM_ENABLED=false`, and uses test-safe environment defaults, so no OpenAI API key is required for the test run.
 
 ## 🎮 Interactive Demo via Web UI
 
