@@ -7,7 +7,7 @@ before they are executed (sending emails, scheduling follow-ups, etc.).
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.observability.metrics import metrics
 from app.schemas.actions import ActionType, ApprovalStatus
+from app.schemas.email import EmailLabel
 from app.tools import calendar_api, mail_api
 
 logger = structlog.get_logger(__name__)
@@ -22,7 +23,15 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 # ── In-memory approval store ────────────────────────────────────────────────
 
-_approvals: dict[str, dict] = {}
+_approvals: dict[str, dict[str, Any]] = {}
+
+_ACTION_METRIC_PREFIXES = {
+    ActionType.SEND_REPLY.value: "send_replies",
+    ActionType.SCHEDULE_FOLLOWUP.value: "follow_ups",
+    ActionType.APPLY_LABEL.value: "labels",
+    ActionType.CREATE_REMINDER.value: "reminders",
+    ActionType.ARCHIVE.value: "archives",
+}
 
 
 def register_approvals(approvals: list[dict]) -> None:
@@ -97,30 +106,31 @@ async def decide_approval(approval_id: str, decision: ApprovalDecision):
     approval["feedback"] = decision.feedback
     approval["decided_at"] = datetime.now(timezone.utc).isoformat()
 
-    result = {"approval_id": approval_id, "decision": decision.decision.value}
+    result: dict[str, Any] = {"approval_id": approval_id, "decision": decision.decision.value}
 
     if decision.decision == ApprovalStatus.APPROVED:
         execution_result = _execute_action(approval, approval["payload"])
         result["execution"] = execution_result
-        metrics.increment("drafts_approved")
+        _record_approval_decision_metrics(approval, decision.decision)
         logger.info("approval_approved", approval_id=approval_id)
 
     elif decision.decision == ApprovalStatus.EDITED:
-        merged_payload = dict(approval["payload"])
+        original_payload: dict[str, Any] = approval["payload"].copy()
+        merged_payload: dict[str, Any] = original_payload.copy()
         if decision.edited_payload:
             merged_payload.update(decision.edited_payload)
         approval["payload"] = merged_payload
         execution_result = _execute_action(approval, merged_payload)
         result["execution"] = execution_result
-        metrics.increment("drafts_edited")
+        _record_approval_decision_metrics(approval, decision.decision)
         logger.info("approval_edited", approval_id=approval_id)
 
         # ── Memory feedback loop: learn from user edits ──────────────────
-        _learn_from_edit(approval, decision.edited_payload, decision.feedback)
+        _learn_from_edit(approval, original_payload, decision.edited_payload, decision.feedback)
 
     elif decision.decision == ApprovalStatus.REJECTED:
         result["execution"] = {"status": "cancelled"}
-        metrics.increment("drafts_rejected")
+        _record_approval_decision_metrics(approval, decision.decision)
         logger.info("approval_rejected", approval_id=approval_id, feedback=decision.feedback)
 
         # ── Memory feedback loop: learn from rejections ──────────────────
@@ -128,6 +138,20 @@ async def decide_approval(approval_id: str, decision: ApprovalDecision):
             _learn_from_rejection(approval, decision.feedback)
 
     return result
+
+
+def _record_approval_decision_metrics(approval: dict, decision: ApprovalStatus) -> None:
+    """Record generic and action-specific approval decision metrics."""
+    decision_value = decision.value
+    action_type = approval.get("action_type", "")
+    action_prefix = _ACTION_METRIC_PREFIXES.get(action_type, "unknown_actions")
+
+    metrics.increment(f"approvals_{decision_value}")
+    metrics.increment(f"{action_prefix}_{decision_value}")
+
+    # Backward-compatible draft counters remain scoped to drafted replies only.
+    if action_type == ActionType.SEND_REPLY.value:
+        metrics.increment(f"drafts_{decision_value}")
 
 
 def _execute_action(approval: dict, payload: dict) -> dict:
@@ -157,7 +181,10 @@ def _execute_action(approval: dict, payload: dict) -> dict:
         return {"status": "scheduled", "event_id": event.event_id}
 
     elif action_type == ActionType.APPLY_LABEL.value:
-        mail_api.apply_label(payload.get("email_id", ""), payload.get("label", "inbox"))
+        mail_api.apply_label(
+            payload.get("email_id", ""),
+            EmailLabel(payload.get("label", EmailLabel.INBOX.value)),
+        )
         return {"status": "label_applied"}
 
     else:
@@ -166,7 +193,12 @@ def _execute_action(approval: dict, payload: dict) -> dict:
 
 # ── Memory feedback: evolve behavior from user decisions ─────────────────────
 
-def _learn_from_edit(approval: dict, edited_payload: dict | None, feedback: str) -> None:
+def _learn_from_edit(
+    approval: dict,
+    original_payload: dict,
+    edited_payload: dict | None,
+    feedback: str,
+) -> None:
     """Learn from user edits to evolve future drafting behavior.
 
     When a user edits a draft before sending, we store their preferences
@@ -176,7 +208,6 @@ def _learn_from_edit(approval: dict, edited_payload: dict | None, feedback: str)
     from app.schemas.memory import UserPreference
 
     try:
-        original_payload = approval.get("payload", {})
         original_tone = original_payload.get("tone", "")
         new_tone = edited_payload.get("tone", "") if edited_payload else ""
 

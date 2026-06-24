@@ -9,6 +9,52 @@ from unittest.mock import AsyncMock, patch
 from app.schemas.email import EmailIntent, EmailLabel, EmailPriority
 
 
+def test_edited_approval_learns_from_original_payload(monkeypatch):
+    """Edited approvals should compare user edits against the original draft."""
+    from app.api import approvals
+
+    stored_preferences = []
+
+    def fake_store_preference(preference):
+        stored_preferences.append(preference)
+
+    monkeypatch.setattr("app.memory.long_term.store_preference", fake_store_preference)
+
+    approval = {
+        "approval_id": "approval-regression-edit-learning",
+        "action_type": "send_reply",
+        "status": "pending",
+        "description": "Approve drafted reply",
+        "payload": {
+            "to_addresses": ["user@example.com"],
+            "subject": "Re: Status",
+            "body": "Short neutral original draft.",
+            "tone": "neutral",
+            "thread_id": "thread-test",
+        },
+    }
+    original_payload = dict(approval["payload"])
+    edited_payload = {
+        "body": "Hi, thanks for the detailed update. I appreciate the context and will follow up with the team today.",
+        "tone": "friendly",
+    }
+
+    approval["payload"] = {**original_payload, **edited_payload}
+
+    approvals._learn_from_edit(
+        approval=approval,
+        original_payload=original_payload,
+        edited_payload=edited_payload,
+        feedback="Please sound warmer in future replies.",
+    )
+
+    preference_by_key = {preference.key: preference for preference in stored_preferences}
+    assert preference_by_key["preferred_reply_tone"].value == "friendly"
+    assert "neutral" in preference_by_key["preferred_reply_tone"].description
+    assert preference_by_key["reply_style_example"].value == edited_payload["body"][:500]
+    assert preference_by_key["drafting_feedback"].value == "Please sound warmer in future replies."
+
+
 # ── Helper: mock classification result ────────────────────────────────────────
 
 def _mock_classified_email(intent="request", priority="urgent"):
@@ -188,6 +234,55 @@ async def test_approval_cannot_decide_twice(client):
         json={"decision": "approved", "feedback": ""},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_send_reply_approval_metrics_are_action_specific(client):
+    """Approving a draft reply should update generic, reply, and legacy draft metrics."""
+    await client.post("/reset")
+
+    resp = await client.post("/inbox/process", json={"email_id": "email-001"})
+    assert resp.status_code == 200
+    data = resp.json()
+    approval_id = data["pending_approvals"][0]["approval_id"]
+
+    resp = await client.post(
+        f"/approvals/{approval_id}/decide",
+        json={"decision": "approved", "feedback": "Looks good"},
+    )
+    assert resp.status_code == 200
+
+    counters = (await client.get("/metrics")).json()["counters"]
+    assert counters["approvals_approved"] == 1
+    assert counters["send_replies_approved"] == 1
+    assert counters["drafts_approved"] == 1
+    assert counters["follow_ups_approved"] == 0
+
+
+@pytest.mark.asyncio
+async def test_follow_up_approval_metrics_do_not_increment_draft_counters(client):
+    """Approving a follow-up should not masquerade as a draft approval."""
+    await client.post("/reset")
+
+    resp = await client.post("/inbox/process", json={"email_id": "email-006"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["pending_approvals"]
+    approval_id = data["pending_approvals"][0]["approval_id"]
+    assert data["pending_approvals"][0]["action_type"] == "schedule_followup"
+
+    resp = await client.post(
+        f"/approvals/{approval_id}/decide",
+        json={"decision": "approved", "feedback": "Schedule it"},
+    )
+    assert resp.status_code == 200
+
+    counters = (await client.get("/metrics")).json()["counters"]
+    assert counters["approvals_approved"] == 1
+    assert counters["follow_ups_approved"] == 1
+    assert counters["follow_ups_scheduled"] == 1
+    assert counters["send_replies_approved"] == 0
+    assert counters["drafts_approved"] == 0
 
 
 # ── Integration: Memory search ────────────────────────────────────────────────
