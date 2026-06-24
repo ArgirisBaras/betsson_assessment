@@ -62,8 +62,17 @@ All outgoing actions (sending emails, scheduling) require explicit human approva
 ```
 Email arrives → Reader retrieves relevant contacts, preferences, org facts
              → Memory context injected into classification and drafting prompts
-             → User feedback (approval edits) can inform future preferences
+             → User feedback (approval edits) updates long-term preferences
+             → Future drafts adapt to learned tone, style, and rejection reasons
 ```
+
+### Feedback Loop (Behavior Evolution)
+The system **evolves over time** based on human decisions:
+- **Edited drafts** → The system detects tone changes and body rewrites, storing them as preferences for future drafting.
+- **Rejection feedback** → User-provided reasons are persisted, informing future classification and routing decisions.
+- **Style learning** → When a user significantly rewrites a draft (>50% change), the rewritten text is stored as a reply style example.
+
+This ensures the assistant becomes more aligned with the user's communication style with each interaction.
 
 ## 🔍 Observability & Monitoring
 
@@ -172,19 +181,24 @@ The API will be available at `http://localhost:8000` with interactive docs at `/
 ### Run the Demo
 
 ```bash
-# Option 1: CLI demo script (recommended — shows everything in one run)
+# Option 1: Docker demo (zero setup — starts server + runs demo automatically)
+docker compose --profile demo up --build
+
+# Option 2: CLI demo script (start server first, then run)
 python demo_script.py
 
-# Option 2: Use the Jupyter notebook (start server first)
+# Option 3: Jupyter notebook (start server first, then open notebook)
 jupyter notebook demo.ipynb
 
-# Option 3: Quick API test with curl
+# Option 4: Quick API test with curl
 curl http://localhost:8000/health
 curl http://localhost:8000/inbox/
 curl -X POST http://localhost:8000/inbox/process \
   -H "Content-Type: application/json" \
   -d '{"email_id": "email-001"}'
 ```
+
+> **Note**: Options 2–4 require the server to be running (`docker compose up --build` or `uvicorn app.main:app --port 8000`). Option 1 handles everything automatically.
 
 ### Run Tests
 
@@ -319,6 +333,8 @@ Once the server is running (`docker compose up --build`), open **http://localhos
 4. **HITL via approval queue** — Rather than blocking the pipeline, pending actions are stored and exposed via REST API. This supports both synchronous (notebook) and asynchronous (UI polling) approval workflows.
 
 5. **Hybrid long-term memory** — The default JSON/keyword backend is deterministic and works without an API key. When an OpenAI key is configured, ChromaDB activates with `text-embedding-3-small` for true semantic retrieval — no local model download needed. Production path: swap the same `knowledge_store` interface to OpenSearch, Pinecone, or another managed vector store.
+
+6. **LangGraph checkpointing** — The orchestrator graph is compiled with a `MemorySaver` checkpointer and each processing run uses a unique `thread_id`. This enables future multi-turn conversations (e.g., "revise the draft I just rejected") and supports replay/debugging of past runs.
 
 ## 🔮 Production Evolution Path
 
