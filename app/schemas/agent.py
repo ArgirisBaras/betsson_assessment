@@ -48,6 +48,9 @@ class AgentState(TypedDict):
     # Routing decision from classifier
     next_action: str
 
+    # Run ID for tracing (scoped per request)
+    run_id: str
+
     # Error tracking
     errors: list[str]
 

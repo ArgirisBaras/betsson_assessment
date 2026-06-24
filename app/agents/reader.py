@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage
 
 from app.memory.long_term import get_memory_context
 from app.observability.metrics import metrics
-from app.observability.tracing import get_latest_tracer
+from app.observability.tracing import get_tracer
 from app.schemas.email import EmailMessage
 from app.tools import mail_api
 from app.tools.classifier import classify_email
@@ -29,7 +29,7 @@ async def reader_node(state: dict) -> dict:
     Produces state updates: classification, memory_context, next_action.
     """
     logger.info("reader_agent_started")
-    tracer = get_latest_tracer()
+    tracer = get_tracer(state.get("run_id", ""))
     span = tracer.start_span("agent", "reader", email_id=state.get("current_email", {}).get("id")) if tracer else None
 
     email_data = state.get("current_email")

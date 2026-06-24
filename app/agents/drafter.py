@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.observability.metrics import metrics
-from app.observability.tracing import get_latest_tracer
+from app.observability.tracing import get_tracer
 from app.schemas.actions import ActionType, ApprovalRequest, DraftReply
 
 logger = structlog.get_logger(__name__)
@@ -57,7 +57,7 @@ async def drafter_node(state: dict) -> dict:
     Generates a draft and creates an ApprovalRequest for HITL review.
     """
     logger.info("drafter_agent_started")
-    tracer = get_latest_tracer()
+    tracer = get_tracer(state.get("run_id", ""))
     span = tracer.start_span("agent", "drafter") if tracer else None
 
     email_data = state.get("current_email")

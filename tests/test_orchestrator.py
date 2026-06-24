@@ -21,6 +21,7 @@ def test_initial_state():
     assert state["current_email"] is None
     assert state["pending_approvals"] == []
     assert state["errors"] == []
+    assert state["run_id"] == ""
 
 
 def test_route_email_urgent_request():

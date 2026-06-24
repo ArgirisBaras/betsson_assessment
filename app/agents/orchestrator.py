@@ -137,26 +137,41 @@ def get_checkpointer():
     return _checkpointer
 
 
-async def process_email(email_data: dict, thread_id: str = "default") -> dict:
+async def process_email(email_data: dict, thread_id: str = "default", run_id: str = "") -> dict:
     """Process a single email through the orchestrator pipeline.
 
     Args:
         email_data: EmailMessage as a dict
         thread_id: Unique thread ID for checkpointing
+        run_id: Trace run ID for scoped observability
 
     Returns:
-        Final agent state after processing
+        Final agent state after processing. If a fatal error occurs,
+        returns a state with the error captured rather than raising.
     """
     from app.memory.short_term import build_initial_state
 
     initial_state = build_initial_state()
     initial_state["current_email"] = email_data
+    initial_state["run_id"] = run_id
 
     config = {"configurable": {"thread_id": thread_id}}
 
     logger.info("orchestrator_processing_started", email_id=email_data.get("id"))
 
-    result = await _graph.ainvoke(initial_state, config=config)
+    try:
+        result = await _graph.ainvoke(initial_state, config=config)
+    except Exception as exc:
+        # Graceful degradation: capture the error in state instead of crashing
+        logger.error(
+            "orchestrator_fatal_error",
+            email_id=email_data.get("id"),
+            error=str(exc),
+        )
+        result = dict(initial_state)
+        result["errors"] = [f"Pipeline error: {str(exc)}"]
+        result["next_action"] = "end"
+        return result
 
     logger.info(
         "orchestrator_processing_completed",

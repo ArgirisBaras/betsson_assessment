@@ -14,7 +14,7 @@ import structlog
 from langchain_core.messages import AIMessage
 
 from app.observability.metrics import metrics
-from app.observability.tracing import get_latest_tracer
+from app.observability.tracing import get_tracer
 from app.schemas.actions import ActionType, ApprovalRequest, FollowUp
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +27,7 @@ async def scheduler_node(state: dict) -> dict:
     a follow-up is needed, then creates an approval request.
     """
     logger.info("scheduler_agent_started")
-    tracer = get_latest_tracer()
+    tracer = get_tracer(state.get("run_id", ""))
     span = tracer.start_span("agent", "scheduler") if tracer else None
 
     email_data = state.get("current_email")

@@ -98,6 +98,7 @@ async def process_email_endpoint(request: ProcessRequest):
         result = await process_email(
             email_data=email.model_dump(),
             thread_id=f"process-{request.email_id}-{run_id}",
+            run_id=run_id,
         )
 
         tracer.end_span(span)

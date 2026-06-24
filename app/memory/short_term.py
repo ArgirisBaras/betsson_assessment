@@ -25,6 +25,7 @@ def build_initial_state() -> dict[str, Any]:
         "completed_actions": [],
         "memory_context": [],
         "next_action": "",
+        "run_id": "",
         "errors": [],
     }
 
