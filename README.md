@@ -2,6 +2,16 @@
 
 An agentic email management system built with **LangGraph**, **FastAPI**, and a **hybrid long-term memory store**. It reads, classifies, summarizes, drafts replies, and schedules follow-ups — all with human-in-the-loop oversight.
 
+## Evaluation / Known Tradeoffs
+
+This repository is a take-home prototype optimized for clear architecture, deterministic demos, and testability:
+
+- **Mocked integrations**: Mail and calendar/task operations use in-memory mock adapters (`app/tools/mail_api.py`, `app/tools/calendar_api.py`) rather than Gmail, Outlook, or Google Calendar APIs.
+- **In-memory runtime state**: Inbox state, sent emails, approvals, metrics, traces, calendar events, and LangGraph checkpoints are process-local. Long-term memory is persisted separately via the JSON/optional ChromaDB store.
+- **Fallback behavior without an OpenAI key**: If `OPENAI_API_KEY` is not configured, is a placeholder, or `LLM_ENABLED=false`, the system uses rule-based classification and template-based summary/draft fallbacks for reliable local execution.
+- **No authentication**: API endpoints are intentionally unauthenticated for the demo; production would require auth, authorization around approval execution, stricter CORS, and secret management.
+- **Production path**: Replace mocks with real mail/calendar providers, move runtime state to PostgreSQL/Redis, use managed vector search or ChromaDB with embeddings, and add managed observability such as OpenTelemetry/Prometheus/LangSmith.
+
 ## 🏗️ Architecture Overview
 
 ```
@@ -82,11 +92,12 @@ This ensures the assistant becomes more aligned with the user's communication st
 - Agent nodes, key tool operations, and API requests are logged with contextual metadata
 - Log levels configurable via `LOG_LEVEL` environment variable
 
-### Distributed Tracing
-- Custom **span-based tracing** for each orchestrator run
-- Records orchestrator/agent spans and durations; the span model supports tool/LLM span types for future deeper instrumentation
+### Processing Traces
+- Custom **in-memory span-based tracing** for each orchestrator run
+- Records orchestrator and agent-node spans with durations for the current processing pipeline
 - Trace data exposed via `GET /traces`
-- Each span captures: type (agent/tool/llm), name, duration_ms, status, metadata
+- Each recorded span captures: type (`orchestrator` or `agent`), name, duration_ms, status, metadata
+- Tool operations and LLM activity are currently visible through structured logs and metrics counters, not as separate trace spans
 
 ### Metrics
 - **In-memory counters**: emails_processed, emails_classified, summaries_generated, drafts_generated, approvals_approved/rejected/edited, send_replies_approved/rejected/edited, follow_ups_proposed/approved/rejected/edited/scheduled, errors, LLM calls/fallbacks
@@ -95,7 +106,7 @@ This ensures the assistant becomes more aligned with the user's communication st
 - Metrics snapshot exposed via `GET /metrics` and visualized as bar charts in the Web UI Metrics tab
 
 ### Sample Log Output
-```json
+```jsonl
 {"event": "email_classified", "email_id": "email-001", "intent": "request", "priority": "urgent", "confidence": 0.95, "level": "info", "timestamp": "2026-06-23T14:35:01Z", "correlation_id": "abc123"}
 {"event": "drafter_agent_completed", "email_id": "email-001", "approval_id": "apr-x7y8z9", "tone": "urgent_professional", "level": "info", "timestamp": "2026-06-23T14:35:03Z"}
 ```

@@ -89,6 +89,30 @@ graph TB
     ORC -.-> METRICS
 ```
 
+## Simplified Email Processing Flow
+
+This is the presentation-friendly flow: the detailed LangGraph state transitions are shown in the next section.
+
+```mermaid
+flowchart LR
+    EMAIL[Incoming Email] --> READER[Reader + Classifier]
+    READER --> ROUTE{Route by Intent / Priority}
+
+    ROUTE -->|FYI / information| SUM[Summarizer Agent]
+    ROUTE -->|Reply needed| DRAFT[Drafter Agent]
+    ROUTE -->|Meeting / follow-up| SCHED[Scheduler Agent]
+    ROUTE -->|Spam / no action| END[End]
+
+    SUM --> SUMMARY[Summary returned]
+    DRAFT --> APPROVAL[Human Approval Queue]
+    SCHED --> APPROVAL
+
+    APPROVAL --> DECISION{User decision}
+    DECISION -->|Approve| EXECUTE[Execute action]
+    DECISION -->|Edit + approve| EXECUTE
+    DECISION -->|Reject| CANCEL[Cancel action]
+```
+
 ## LangGraph State Machine
 
 ```mermaid
