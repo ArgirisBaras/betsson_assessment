@@ -99,11 +99,13 @@ flowchart LR
     READER --> ROUTE{Route by Intent / Priority}
 
     ROUTE -->|FYI / information| SUM[Summarizer Agent]
+    ROUTE -->|Complex request| SUM
     ROUTE -->|Reply needed| DRAFT[Drafter Agent]
     ROUTE -->|Meeting / follow-up| SCHED[Scheduler Agent]
     ROUTE -->|Spam| END[End]
 
-    SUM --> SUMMARY[Summary returned]
+    SUM -->|Summary only| SUMMARY[Summary returned]
+    SUM -->|Reply also needed| DRAFT
     DRAFT --> APPROVAL[Human Approval Queue]
     SCHED --> APPROVAL
 
@@ -198,30 +200,38 @@ sequenceDiagram
 
 ```mermaid
 graph LR
+    EMAIL[Incoming Email] --> RDR[Reader Agent]
+
     subgraph "Short-Term Memory"
         direction TB
         STM[LangGraph AgentState]
-        MSG[Message History]
-        CTX[Current Context]
+        CUR[Current Email]
+        CLS[Classification]
+        MEMCTX[Retrieved Memory Context]
+        OUT[Summary / Draft / Follow-up]
         PEN[Pending Approvals]
-        STM --> MSG
-        STM --> CTX
+        STM --> CUR
+        STM --> CLS
+        STM --> MEMCTX
+        STM --> OUT
         STM --> PEN
     end
 
-    subgraph "Long-Term Memory (JSON store + optional ChromaDB)"
+    subgraph "Long-Term Memory"
         direction TB
+        KS[Knowledge Store<br/>JSON keyword + optional ChromaDB]
         PREF[Preferences Collection<br/>reply_tone, urgency thresholds...]
         CONT[Contacts Collection<br/>name, role, relationship...]
         ORGF[Org Facts Collection<br/>policies, projects, team info...]
+        KS --> PREF
+        KS --> CONT
+        KS --> ORGF
     end
 
-    EMAIL[Incoming Email] --> STM
-    STM -->|memory search| PREF
-    STM -->|sender lookup| CONT
-    STM -->|context enrichment| ORGF
-    PREF -->|context| STM
-    CONT -->|context| STM
-    ORGF -->|context| STM
+    RDR -->|get_memory_context| KS
+    KS -->|contacts, preferences, org facts| MEMCTX
+    RDR -->|updates current run state| STM
+
+    APPROVAL[Approval edits / rejection feedback] -->|learned preferences| PREF
 ```
 
