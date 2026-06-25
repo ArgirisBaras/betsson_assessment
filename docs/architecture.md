@@ -101,7 +101,7 @@ flowchart LR
     ROUTE -->|FYI / information| SUM[Summarizer Agent]
     ROUTE -->|Reply needed| DRAFT[Drafter Agent]
     ROUTE -->|Meeting / follow-up| SCHED[Scheduler Agent]
-    ROUTE -->|Spam / no action| END[End]
+    ROUTE -->|Spam| END[End]
 
     SUM --> SUMMARY[Summary returned]
     DRAFT --> APPROVAL[Human Approval Queue]
@@ -122,7 +122,7 @@ stateDiagram-v2
     Reader --> Draft: urgent/high request\nor question
     Reader --> Summarize: information, feedback\nor summarize_and_draft
     Reader --> Schedule: meeting_invite\nor follow_up
-    Reader --> [*]: spam or\nno action needed
+    Reader --> [*]: spam
 
     Summarize --> Draft: summarize_and_draft
     Summarize --> [*]: summary only
