@@ -151,8 +151,6 @@ docker compose down
 
 > **Note**: The system works without an OpenAI key — it falls back to rule-based classification and template-based drafting. Set the key for full LLM-powered functionality. Chat model creation is centralized in `app/llm/provider.py`; set `LLM_ENABLED=false` to force deterministic fallbacks without outbound LLM calls.
 
-> **Security note**: Never commit `.env` or paste API keys into `docker-compose.yml`. `.env` is already ignored by `.gitignore`.
-
 ### Option B: Local Python Setup
 
 **Prerequisites**: Python 3.11+. An OpenAI API key is optional and enables LLM-powered classification, summarization, drafting, and ChromaDB/OpenAI embedding-based semantic memory search.
