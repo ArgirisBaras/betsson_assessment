@@ -14,6 +14,8 @@ This repository is a take-home prototype optimized for clear architecture, deter
 
 ## 🏗️ Architecture Overview
 
+> **Diagrams and visual walkthroughs**: Additional architecture and execution-flow diagrams are available in [`docs/architecture.md`](docs/architecture.md), with UI/demo screenshots under [`docs/screenshots/`](docs/screenshots/).
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FastAPI Layer                            │
